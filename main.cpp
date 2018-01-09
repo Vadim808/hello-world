@@ -1,5 +1,4 @@
 #include <iostream>
-#include <vector>
 #include <cstdint>
 
 template <typename T>
@@ -8,85 +7,115 @@ struct node {
     node * next;
 };
 
+template <typename T>
 class my_list {
+private:
+    node<T> * end = new node<T>;
+    node<T> * begin = end;
+    int list_len = 0;
 public:
-    node<int64_t> * begin = new node<int64_t>;
-    my_list(std::vector<int64_t> numbers) {
-        begin->value = numbers[0];
-        node<int64_t> * second_x = new node<int64_t>;
-        second_x->value = numbers[1];
-        begin->next = second_x;
-        for (int i = 1; i < numbers.size() - 1; ++i) {
-            node<int64_t> * x = new node<int64_t>;
-            x->value = numbers[i + 1];
-            second_x->next = x;
-            second_x = x;
+    my_list() {}
+    
+    my_list(node<T> * b, node<T> * e): begin(b), end(e) {}
+
+    node<T> * begin_node() {
+        return begin;
+    }
+    
+    void move_begin() {
+        begin = begin->next;
+    }
+    
+    node<T> * end_node() {
+        return end;
+    }
+    
+    void push_back(T x) {
+        if (list_len != 0) {
+            end = end->next;
         }
+        list_len += 1;
+        end->value = x;
+        end->next = new node<T>;
+    }
+    
+    void print(int N) {
+        node<T> * x = begin;
+        for (int i = 0; i < N; ++i) {
+            std::cout << x->value << ' ';
+            x = x->next;
+        }
+    }
+    
+    void assign_end(node<T> * x) {
+        end = x;
     }
 };
 
-void merge(int64_t left, int64_t middle, int64_t right, node<int64_t> * l, node<int64_t> * mi) {
-    int64_t n1 = middle - left + 1;
-    int64_t n2 = right - middle;
-    node<int64_t> * L = new node<int64_t>;
-    node<int64_t> * R = new node<int64_t>;
-    node<int64_t> * startL = L;
-    node<int64_t> * startR = R;
-    node<int64_t> * k = l;
-    for (int64_t i = 0; i < n1; ++i) {
-        L->value = l->value;
-        l = l->next;
-        L->next = new node<int64_t>;
-        L = L->next;
+template <typename T>
+node<T> * move_node(node<T> * n, int moves) {
+    for (int i = 0; i < moves; ++i) {
+        n = n->next;
     }
-    L->value = 1e18 + 1;
-    mi = mi->next;
-    for (int j = 0; j < n2; ++j) {
-        R->value = mi->value;
-        mi = mi->next;
-        R->next = new node<int64_t>;
-        R = R->next;
-    }
-    R->value = 1e18 + 1;
-    for (int64_t m = left; m <= right; ++m) {
-        if (startL->value <= startR->value) {
-            k->value = startL->value;
-            startL = startL->next;
-        } else {
-            k->value = startR->value;
-            startR = startR->next;
+    return n;
+}
+
+template <typename T>
+void merge(node<T> * l, node<T> * m, node<T> * r) {
+    my_list<T> L(l, m);
+    my_list<T> R(m->next, r);
+    node<T> * end = r->next;
+    L.end_node()->next = nullptr;
+    R.end_node()->next = nullptr;
+    while (L.begin_node() != nullptr && R.begin_node() != nullptr){
+        if (L.begin_node()->value > R.begin_node()->value) {
+            node<T> * n = R.begin_node();
+            R.move_begin();
+            n->next = L.begin_node()->next;
+            L.begin_node()->next = n;
+            T x = L.begin_node()->value;
+            L.begin_node()->value = n->value;
+            n->value = x;
+            if (n->next == nullptr) {
+                L.assign_end(n);
+            }
         }
-        k = k->next;
+        L.move_begin();
+    }
+    if (R.begin_node() == nullptr) {
+        L.end_node()->next = end;
+    } else {
+        L.end_node()->next = R.begin_node();
+        R.end_node()->next = end;
     }
 }
 
-void merge_sort(int left, int right, node<int64_t> * l) {
+template <typename T>
+void merge_sort(int left, int right, node<T> * l, node<T> * r) {
     if (left < right) {
         int middle = (left + right) / 2;
-        node<int64_t> * m = l;
-        for (int64_t i = left; i < middle; ++i) {
-            m = m->next;
-        }
-        merge_sort(left, middle, l);
-        merge_sort(middle + 1, right, m->next);
-        merge(left, middle, right, l, m);
+        node<T> * m = l;
+        m = move_node(m, middle - left);
+        node<T> * next_m = m->next;
+        merge_sort(left, middle, l, m);
+        merge_sort(middle + 1, right, next_m, r);
+        m = l;
+        m = move_node(m, middle - left);
+        r = m;
+        r = move_node(r, right - middle);
+        merge(l, m, r);
     }
 }
 
 int main() {
     int N;
     std::cin >> N;
-    std::vector<int64_t> numbers;
-    numbers.resize(N);
+    my_list<int64_t> list;
+    int64_t x;
     for (int i = 0; i < N; ++i) {
-        std::cin >> numbers[i];
+        std::cin >> x;
+        list.push_back(x);
     }
-    my_list list_numbers(numbers);
-    node<int64_t> * x = new node<int64_t>;
-    x = list_numbers.begin;
-    merge_sort(0, N - 1, x);
-    for (int i = 0; i < N; ++i) {
-        std::cout << x->value << ' ';
-        x = x->next;
-    }
+    merge_sort(0, N - 1, list.begin_node(), list.end_node());
+    list.print(N);
 }
